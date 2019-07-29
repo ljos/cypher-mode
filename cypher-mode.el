@@ -1,8 +1,9 @@
 ;;; cypher-mode.el --- major mode for editing cypher scripts
 
 ;; Copyright 2013 François-Xavier Bois
+;; Copyright 2019 Bjarte Johansen
 
-;; Version: 0.0.6
+;; Version: 0.1.0
 ;; Author: François-Xavier Bois <fxbois AT Google Mail Service>
 ;; Maintainer: François-Xavier Bois
 ;; Created: Sept 2013
@@ -33,10 +34,14 @@
 
 ;; Code goes here
 
+(require 'custom)
+(require 'comint)
+
 (defgroup cypher nil
   "Major mode for editing cypher scripts."
-  :version "0.0.6"
-  :group 'languages)
+  :version "0.1.0"
+  :group 'languages
+  :prefix "cypher-")
 
 (defgroup cypher-faces nil
   "Faces for syntax highlighting."
@@ -48,169 +53,103 @@
   :type 'integer
   :group 'cypher-mode)
 
-(defface cypher-clause-face
-  '((t :inherit font-lock-builtin-face))
-  "Face for language clauses."
-  :group 'cypher-faces)
-
 (defface cypher-keyword-face
-  '((t :inherit font-lock-keyword-face))
+  `((t :inherit font-lock-keyword-face))
   "Face for language keywords."
   :group 'cypher-faces)
 
-(defface cypher-function-face
-  '((t :inherit font-lock-function-name-face))
-  "Face for language function."
-  :group 'cypher-faces)
-
-(defface cypher-node-type-face
-  '((t :inherit font-lock-constant-face))
-  "Face for language keywords."
-  :group 'cypher-faces)
-
-(defface cypher-relation-type-face
-  '((t :inherit font-lock-type-face))
-  "Face for language keywords."
-  :group 'cypher-faces)
-
-(defface cypher-pattern-face
-  '((t :foreground "DeepPink" :background "grey16" :bold t))
-  "Face for pattern struct."
-  :group 'cypher-faces)
-
-(defface cypher-symbol-face
-  '((t :inherit font-lock-variable-name-face))
-  "Face for language keywords."
+(defface cypher-builtin-face
+  `((t :inherit font-lock-builtin-face))
+  "Face for builtin function."
   :group 'cypher-faces)
 
 (defface cypher-variable-face
-  '((t :foreground "grey85"))
+  `((t :inherit font-lock-variable-name-face))
   "Face for vars."
   :group 'cypher-faces)
 
-;; clauses, keywords and functions extracted using https://gist.github.com/xshyamx/7863e7b208a55f1bbfaa
-(defvar cypher-clauses
-  (regexp-opt
-   '("case" "create" "delete" "foreach" "load csv" "match" "merge" "on" "remove"
-     "return" "set" "start" "union" "unwind" "using periodic commit" "using"
-     "when" "where" "with"))
-  "Cypher clauses.")
-
 (defvar cypher-keywords
-  (regexp-opt
-   '("all" "allshortestpaths" "and" "any" "as" "asc" "ascending" "assert" "by"
-     "case" "constraint on" "count" "create constraint on" "create index on"
-     "create unique" "create" "delete" "desc" "descending" "distinct"
-     "drop constraint on" "drop index on" "drop" "else" "end" "extract" "false"
-     "fieldterminator" "filter" "foreach" "from" "has" "in" "is not null"
-     "is null" "is unique" "is" "limit" "load csv" "match" "merge" "node" "none"
-     "not" "null" "on create" "on match" "on" "optional match" "or" "order by"
-     "reduce" "rel" "relationship" "remove" "return distinct" "return" "scan"
-     "set" "shortestpath" "single" "skip" "start" "then" "true" "union all"
-     "union" "unique" "unwind" "using index" "using periodic commit" "using scan"
-     "when" "where" "with distinct" "with headers" "with" "xor"))
+  '("all" "allshortestpaths" "and" "any" "as" "asc" "ascending" "assert"
+    "by"
+    "call" "case" "constraint on" "count" "create" "create constraint on" "create index on"
+    "create unique" "create"
+    "delete" "desc" "descending" "distinct" "drop constraint on" "drop index on" "drop"
+    "else" "end" "extract"
+    "false" "fieldterminator" "filter" "foreach" "from"
+    "has"
+    "in" "is not null" "is null" "is unique" "is"
+    "limit" "load csv"
+    "match" "merge"
+    "node" "none" "not" "null" "on create" "on match" "on" "optional match" "or" "order by"
+    "reduce" "rel" "relationship" "remove" "return distinct" "return"
+    "scan" "set" "shortestpath" "single" "skip" "start" "then" "true"
+    "union" "union all" "unique" "unwind" "using" "using index" "using periodic commit" "using scan"
+    "when" "where" "with" "with distinct" "with headers"
+    "yield"
+    "xor")
   "Cypher keywords.")
 
 (defvar cypher-functions
-  (regexp-opt
-   '("abs" "acos" "asin" "atan" "atan2" "avg" "ceil" "coalesce" "collect" "cos"
-     "cot" "count" "degrees" "e" "endnode" "exists" "exp" "floor" "has"
-     "haversin" "head" "id" "labels" "last" "left" "length" "log" "log10"
-     "lower" "ltrim" "max" "min" "nodes" "percentilecont" "percentiledisc" "pi"
-     "radians" "rand" "range" "reduce" "relationships" "rels" "replace" "right"
-     "round" "rtrim" "sign" "sin" "size" "split" "sqrt" "startnode" "stdev"
-     "stdevp" "str" "substring" "sum" "tail" "tan" "timestamp" "tofloat" "toint"
-     "tolower" "tostring" "toupper" "trim" "type" "upper"))
+  '("abs" "acos" "asin" "atan" "atan2" "avg"
+    "ceil" "coalesce" "collect" "cos" "cot" "count"
+    "degrees"
+    "e" "endnode" "exists" "exp" "floor"
+    "has" "haversin" "head"
+    "id"
+    "labels" "last" "left" "length" "log" "log10" "lower" "ltrim"
+    "max" "min"
+    "nodes"
+    "percentilecont" "percentiledisc" "pi"
+    "radians" "rand" "range" "reduce" "relationships" "rels" "replace" "right" "round" "rtrim"
+    "sign" "sin" "size" "split" "sqrt" "startnode" "stdev" "stdevp" "str" "substring" "sum"
+    "tail" "tan" "timestamp" "tofloat" "toint" "tolower" "tostring" "toupper" "trim" "type"
+    "upper")
   "Cypher functions")
 
 (defvar cypher-font-lock-keywords
-  (list
-;;   '("\\()<?-->?(\\|)<?-\\[\\|\\]->?(\\|[<-]?-\\[\\|\\]-[>-]?\\)" 1 'cypher-pattern-face)
-;;   '(" \\((\\)" 1 'cypher-pattern-face)
-;;   '("\\()\\)\\($\\| \\|,\\)" 1 'cypher-pattern-face)
+  `((,(concat "\\b\\(" (regexp-opt cypher-functions) "\\)\\b(" ) 1 'cypher-builtin-face)
+    ("[$]\\w+" 0 'cypher-variable-face)
+    (,(concat "\\b" (regexp-opt cypher-keywords) "\\b") . 'cypher-keyword-face)))
 
+(defvar cypher-mode-syntax-table
+  (let ((table (make-syntax-table)))
+    ;; _   : word
+    (modify-syntax-entry ?_ "w" table)
+    ;; //  : comment
+    (modify-syntax-entry ?\/ ". 12b" table)
+    (modify-syntax-entry ?\n "> b" table)
+    ;; ' " : strings
+    (modify-syntax-entry ?\" "\"" table)
+    (modify-syntax-entry ?\' "\"" table)
+    (modify-syntax-entry ?\` "\"" table)
+    table)
+  "Syntax table for `cypher-mode'.")
 
-   '(")?\\(<?->?\\)\\[" 1 'cypher-pattern-face)
-   '("\\]\\(<?->?\\)(?" 1 'cypher-pattern-face)
-   '("--\\|->\\|<-" 0 'cypher-pattern-face)
-   (cons (concat "\\<\\(" cypher-clauses "\\)\\>") '(1 'cypher-clause-face))
-   (cons (concat "\\<\\(" cypher-keywords "\\)\\>") '(1 'cypher-keyword-face))
-   (cons (concat "\\<\\(" cypher-functions "\\)\\((\\).*?\\()\\)")
-         '((1 'cypher-keyword-face t t)
-           (2 nil t t) (3 nil t t)))
-   '("-\\[\\(?:[[:alpha:]_]+\\)?\\(:[[:alpha:]_]+\\)"
-     1 'cypher-relation-type-face)
-   '("\\(?:[[:alpha:]_]+\\)?\\(:[[:alpha:]_]+\\)"
-     1 'cypher-node-type-face)
-   '("(\\(:[[:alnum:]_]+\\)" 1 'cypher-node-type-face)
-   '("\\([[:alpha:]_]+[ ]?:\\)" 1 'cypher-symbol-face)
-   '("[[:alpha:]][[:alpha:]_]*" 0 'cypher-variable-face)
-  ))
-
- (defvar cypher-mode-syntax-table
-   (let ((table (make-syntax-table)))
-     ;; _   : word
-     (modify-syntax-entry ?_ "w" table)
-     ;; //  : comment
-     (modify-syntax-entry ?\/ ". 12b" table)
-     (modify-syntax-entry ?\n "> b" table)
-     ;; ' " : strings
-     (modify-syntax-entry ?\" "\"" table)
-     (modify-syntax-entry ?\' "\"" table)
-     (modify-syntax-entry ?\` "\"" table)
-     table)
-   "Syntax table.")
-
-(defvar cypher-map
+(defvar cypher-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c r") 'cypher-reload)
-    ))
-
-(eval-and-compile
-  (defalias 'cypher-prog-mode
-    (if (fboundp 'prog-mode) 'prog-mode 'fundamental-mode))
-  (if (fboundp 'with-silent-modifications)
-      (defalias 'cypher-with-silent-modifications 'with-silent-modifications)
-    (defmacro cypher-with-silent-modifications (&rest body)
-      "For compatibility with Emacs pre 23.3"
-      `(let ((old-modified-p (buffer-modified-p))
-             (inhibit-modification-hooks t)
-             (buffer-undo-list t))
-         (unwind-protect
-             ,@body
-           (set-buffer-modified-p old-modified-p)))))
-  )
-
-(defvar cypher-font-lock-defaults
-  '(cypher-font-lock-keywords nil t))
+    (define-key map "\C-c\C-p" 'run-cypher-shell)
+    (define-key map "\C-c\C-c" 'cypher-shell-send-region)
+    map)
+  "Keymap for `cypher-mode'.")
 
 ;;;###autoload
-(define-derived-mode cypher-mode cypher-prog-mode "Cypher"
-  "Major mode for editing web templates."
-  (make-local-variable 'comment-end)
-  (make-local-variable 'comment-start)
-  (make-local-variable 'font-lock-defaults)
-;;  (make-local-variable 'font-lock-keywords-case-fold-search)
-  (make-local-variable 'indent-line-function)
-  (setq comment-end ""
-        comment-start "//"
-        font-lock-defaults cypher-font-lock-defaults
-        indent-line-function 'cypher-indent-line)
-  )
-
-(defun cypher-reload ()
-  "Reload cypher."
-  (interactive)
-  (cypher-with-silent-modifications
-   (unload-feature 'cypher-mode)
-   (cypher-mode)
-   (if (fboundp 'cypher-mode-hook)
-       (cypher-mode-hook))))
+(define-derived-mode cypher-mode prog-mode "Cypher"
+  "Major mode for editing web templates.
+\\{cypher-mode-map}
+"
+  (setq-local indent-line-function #'cypher-indent-line)
+  (setq-local comment-start "// ")
+  (setq-local comment-start-skip "/+\s-*")
+  (setq-local font-lock-defaults
+              '(cypher-font-lock-keywords
+                nil ;; font-lock-keywords-only
+                t   ;; font-lock-keywords-case-fold-search
+                )))
 
 (defun cypher-indent-line ()
   "Indent current line."
   (let (ctx (inhibit-modification-hooks t) (offset) pos
-        (regexp "^\s*\\(CREATE\\|ORDER\\|MATCH\\|LIMIT\\|SET\\|SKIP\\|START\\|RETURN\\|WITH\\|WHERE\\|DELETE\\|FOREACH\\)"))
+            (regexp "^\s*\\(CALL\\|CREATE\\|ORDER\\|MATCH\\|LIMIT\\|SET\\|SKIP\\|START\\|RETURN\\|WITH\\|WHERE\\|DELETE\\|FOREACH\\|YIELD\\)"))
 
     (save-excursion
       (back-to-indentation)
@@ -218,27 +157,20 @@
       (setq ctx (cypher-block-context pos))
       (cond
        ((string-match-p regexp (thing-at-point 'line))
-        (setq offset 0)
-        )
+        (setq offset 0))
        ((plist-get ctx :arg-inline)
-        (setq offset (plist-get ctx :column))
-        )
+        (setq offset (plist-get ctx :column)))
        ((re-search-backward regexp nil t)
         (goto-char (match-end 1))
         (skip-chars-forward "[:space:]")
-        (setq offset (current-column))
-        )
+        (setq offset (current-column)))
        (t
-        (setq offset cypher-indent-offset))
-       ))
+        (setq offset cypher-indent-offset))))
     (when offset
       (let ((diff (- (current-column) (current-indentation))))
         (setq offset (max 0 offset))
         (indent-line-to offset)
-        (if (> diff 0) (forward-char diff))
-        )
-      )
-      ))
+        (if (> diff 0) (forward-char diff))))))
 
 (defun cypher-block-context (&optional pos)
   "Count opened opened block at point."
@@ -313,7 +245,7 @@
 
          );cond
 
-      );while
+        );while
 
       (unless arg-inline
         (maphash
@@ -346,9 +278,7 @@
 
         (message "ctx=%S" ctx)
 
-        ctx)
-
-      )))
+        ctx))))
 
 (defun cypher-line-number (&optional pos)
   "Return line number at point."
@@ -363,8 +293,105 @@
   (unless pos (setq pos (point)))
   (save-excursion
     (goto-char pos)
-    (current-column)
-    ))
+    (current-column)))
+
+(defgroup cypher-shell nil
+  "Inferior mode for interactive cypher shell."
+  :version "0.0.1"
+  :group 'cypher
+  :prefix "cypher-shell-")
+
+(defvar cypher-shell-program "cypher-shell")
+
+(defvar cypher-shell-user "neo4j")
+
+(defvar cypher-shell-password nil)
+
+(defvar cypher-shell-args '())
+
+(defvar cypher-shell-prompt-regexp "^\\w*>")
+
+(defvar cypher-shell-mode-map
+  (let ((map (make-sparse-keymap)))
+    map)
+  "Keymap for `run-cypher-shell'")
+
+(defun cypher-shell-set-user (user)
+  "Set the user to a new value."
+  (interactive
+   (list (read-string "Username: ")))
+  (setq cypher-shell-user password))
+
+(defun cypher-shell--get-user ()
+  (or cypher-shell-user
+      (command-execute #'cypher-shell-set-user)))
+
+(defun cypher-shell-set-password (password)
+  "Set the password to a new value."
+  (interactive
+   (list (read-passwd "Password: ")))
+  (setq cypher-shell-password password))
+
+
+(defun cypher-shell--get-password ()
+  (or cypher-shell-password
+      (command-execute #'cypher-shell-set-password)))
+
+(defun run-cypher-shell ()
+  "Run an inferior instance of `cyper-shell' inside Emacs."
+  (interactive)
+  (let ((cypher-shell-program cypher-shell-program)
+        (buffer (get-buffer-create "*Cypher*")))
+    (when (not (comint-check-proc "*Cypher*"))
+      (apply 'make-comint-in-buffer "Cypher" buffer
+             cypher-shell-program nil
+             (append (list "-u" (cypher-shell--get-user))
+                     (list "-p" (cypher-shell--get-password))
+                     cypher-shell-args)))
+    (pop-to-buffer-same-window "*Cypher*")
+    (inferior-cypher-mode)))
+
+(defun cypher-shell-send-region ()
+  "Send the active region (or whole buffer) to the running cypher
+shell."
+  (interactive)
+  (let* ((beg (if (region-active-p) (region-beginning) (point-min)))
+         (end (if (region-active-p) (region-end) (point-max)))
+         (region (buffer-substring-no-properties beg end))
+         (process (get-buffer-process (get-buffer "*Cypher*"))))
+    (if (not process)
+        (error
+         "Start cypher process first with `M-x run-cypher-shell' or `%s'."
+         (key-description
+          (where-is-internal #'run-cypher-shell overriding-local-map t)))
+      (comint-send-string process
+                          (if (string-match ";\n?\s-*\n?\\'" region)
+                              region
+                            (concat region ";\n")))
+      (comint-send-string process "\n"))))
+
+(defun cypher-shell--initialize ()
+  (setq comint-use-prompt-regexp t))
+
+(defvar inferior-cypher-mode-map
+  (let ((map (make-sparse-keymap)))
+    map)
+  "Keymap for `inferior-cypher-mode'.")
+
+(define-derived-mode inferior-cypher-mode comint-mode "Cypher-Shell"
+  "Major mode for `run-cypher-shell'
+\\{inferior-cypher-mode-map}"
+  :group 'cypher-shell
+  (setq-local comint-prompt-regexp cypher-shell-prompt-regexp)
+  (setq-local comint-prompt-read-only t)
+  (setq-local paragraph-start cypher-shell-prompt-regexp)
+  (setq-local font-lock-defaults
+              '(cypher-font-lock-keywords
+                nil ;; font-lock-keywords-only
+                t   ;; font-lock-keywords-case-fold-search
+                )))
+
+(add-hook 'inferior-cypher-mode #'cypher-shell--initialize)
 
 ;;;###autoload
 (progn
