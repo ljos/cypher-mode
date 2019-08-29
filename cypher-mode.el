@@ -58,6 +58,11 @@
   "Face for language keywords."
   :group 'cypher-faces)
 
+(defface cypher-constant-face
+  `((t :inherit font-lock-constant-face))
+  "Face for language keywords."
+  :group 'cypher-faces)
+
 (defface cypher-builtin-face
   `((t :inherit font-lock-builtin-face))
   "Face for builtin function."
@@ -75,19 +80,22 @@
     "create unique" "create"
     "delete" "desc" "descending" "distinct" "drop constraint on" "drop index on" "drop"
     "else" "end" "extract"
-    "false" "fieldterminator" "filter" "foreach" "from"
+    "fieldterminator" "filter" "foreach" "from"
     "has"
-    "in" "is not null" "is null" "is unique" "is"
+    "in" "is not" "is" "is unique" "is"
     "limit" "load csv"
     "match" "merge"
-    "node" "none" "not" "null" "on create" "on match" "on" "optional match" "or" "order by"
+    "node" "none" "not" "on create" "on match" "on" "optional match" "or" "order by"
     "reduce" "rel" "relationship" "remove" "return distinct" "return"
-    "scan" "set" "shortestpath" "single" "skip" "start" "then" "true"
+    "scan" "set" "shortestpath" "single" "skip" "start" "then"
     "union" "union all" "unique" "unwind" "using" "using index" "using periodic commit" "using scan"
     "when" "where" "with" "with distinct" "with headers"
     "yield"
     "xor")
   "Cypher keywords.")
+
+(defvar cypher-constants
+  '("true" "false" "null"))
 
 (defvar cypher-functions
   '("abs" "acos" "asin" "atan" "atan2" "avg"
@@ -107,8 +115,9 @@
   "Cypher functions")
 
 (defvar cypher-font-lock-keywords
-  `((,(concat "\\b\\(" (regexp-opt cypher-functions) "\\)\\b(" ) 1 'cypher-builtin-face)
-    ("[$]\\w+" 0 'cypher-variable-face)
+  `(("[$]\\w+" 0 'cypher-variable-face)
+    (,(concat "\\b\\(" (regexp-opt cypher-functions) "\\)\\b(" ) 1 'cypher-builtin-face)
+    (,(concat "\\b" (regexp-opt cypher-constants) "\\b" ) . 'cypher-constant-face)
     (,(concat "\\b" (regexp-opt cypher-keywords) "\\b") . 'cypher-keyword-face)))
 
 (defvar cypher-mode-syntax-table
