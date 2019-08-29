@@ -1,0 +1,14 @@
+* cypher-mode
+
+Emacs major mode for editing cypher scripts ([Neo4j](http://neo4j.org/))
+
+
+Sample cypher statement
+
+
+#+BEGIN_SRC cypher
+  MATCH (me {name: "Me"})
+  FOREACH (i in range(1, 10))
+  CREATE (friend {name: "Friend " + i}),
+         (me)-[:FRIEND]->(friend);
+#+END_SRC

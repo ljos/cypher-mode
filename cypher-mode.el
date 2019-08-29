@@ -118,6 +118,7 @@
         (keywords (concat "\\b" (regexp-opt cypher-keywords) "\\b")))
     (save-mark-and-excursion
       (beginning-of-line)
+      (skip-syntax-forward "-" (line-end-position))
       (unless (looking-at keywords)
         (forward-line -1)
         (beginning-of-line)
