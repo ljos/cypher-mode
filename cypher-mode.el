@@ -127,6 +127,19 @@
           (goto-char (match-end 0))
           (setq indent-column (1+ (current-column))))))
     (save-mark-and-excursion
+      (back-to-indentation)
+      (save-mark-and-excursion
+        (if (looking-at ")\\|}\\|\\]")
+            (setq indent-column
+                  (progn
+                    (backward-up-list)
+                    (current-column)))
+          (up-list -1)
+          (cond ((looking-at-p "({\\|\\[")
+                 (setq indent-column
+                       (+ 1 cypher-indent-offset (current-column)))))))
+      (end-of-line)
+      (delete-horizontal-space)
       (indent-line-to (or indent-column 0))))
   (when (let ((search-spaces-regexp t))
           (string-match-p "^ *$"
