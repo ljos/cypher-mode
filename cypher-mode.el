@@ -387,6 +387,11 @@ shell."
     map)
   "Keymap for `inferior-cypher-mode'.")
 
+(defvar inferior-cypher-mode-syntax-table
+  (let ((table (copy-syntax-table cypher-mode-syntax-table)))
+    table)
+  "Syntax table for `inferior-cypher-mode'")
+
 (define-derived-mode inferior-cypher-mode comint-mode "Cypher-Shell"
   "Major mode for `run-cypher-shell'
 \\{inferior-cypher-mode-map}"
