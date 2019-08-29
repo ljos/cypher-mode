@@ -3,23 +3,19 @@
 ;; Copyright 2013 François-Xavier Bois
 ;; Copyright 2019 Bjarte Johansen
 
-;; Version: 0.1.0
+;; Version: 1.0.0
 ;; Author: François-Xavier Bois <fxbois AT Google Mail Service>
-;; Maintainer: François-Xavier Bois
+;; Maintainer: Bjarte Johansen
 ;; Created: Sept 2013
 ;; Keywords: cypher graph
-;; URL: http://github.com/fxbois/cypher-mode
-;; Repository: http://github.com/fxbois/cypher-mode
-
-;; =========================================================================
-;; This work is sponsored by Kernix : Digital Agency (Web & Mobile) in Paris
-;; =========================================================================
+;; URL: http://github.com/ljos/cypher-mode
+;; Repository: http://github.com/ljos/cypher-mode
 
 ;; This file is not part of Emacs
 
 ;; This file is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 2, or (at your option)
+;; the Free Software Foundation; either version 3, or (at your option)
 ;; any later version.
 
 ;; This file is distributed in the hope that it will be useful,
@@ -39,7 +35,7 @@
 
 (defgroup cypher nil
   "Major mode for editing cypher scripts."
-  :version "0.1.0"
+  :version "1.0.0"
   :group 'languages
   :prefix "cypher-")
 
