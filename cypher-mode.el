@@ -114,6 +114,30 @@
     "upper")
   "Cypher functions")
 
+
+(defun cypher-indent-line ()
+  "Indent current line as a cypher query."
+  (interactive)
+  (let (indent-column
+        (keywords (concat "\\b" (regexp-opt cypher-keywords) "\\b")))
+    (save-mark-and-excursion
+      (beginning-of-line)
+      (unless (looking-at keywords)
+        (forward-line -1)
+        (beginning-of-line)
+        (if (not (looking-at keywords))
+            (setq indent-column (current-indentation))
+          (goto-char (match-end 0))
+          (setq indent-column (1+ (current-column))))))
+    (save-mark-and-excursion
+      (indent-line-to (or indent-column 0))))
+  (when (let ((search-spaces-regexp t))
+          (string-match-p "^ *$"
+                          (buffer-substring-no-properties
+                           (line-beginning-position)
+                           (point))))
+    (skip-chars-forward "[:space:]" (line-end-position))))
+
 (defvar cypher-font-lock-keywords
   `(("[$]\\w+" 0 'cypher-variable-face)
     (,(concat "\\b\\(" (regexp-opt cypher-functions) "\\)\\b(" ) 1 'cypher-builtin-face)
@@ -154,155 +178,6 @@
                 nil ;; font-lock-keywords-only
                 t   ;; font-lock-keywords-case-fold-search
                 )))
-
-(defun cypher-indent-line ()
-  "Indent current line."
-  (let (ctx (inhibit-modification-hooks t) (offset) pos
-            (regexp "^\s*\\(CALL\\|CREATE\\|ORDER\\|MATCH\\|LIMIT\\|SET\\|SKIP\\|START\\|RETURN\\|WITH\\|WHERE\\|DELETE\\|FOREACH\\|YIELD\\)"))
-
-    (save-excursion
-      (back-to-indentation)
-      (setq pos (point))
-      (setq ctx (cypher-block-context pos))
-      (cond
-       ((string-match-p regexp (thing-at-point 'line))
-        (setq offset 0))
-       ((plist-get ctx :arg-inline)
-        (setq offset (plist-get ctx :column)))
-       ((re-search-backward regexp nil t)
-        (goto-char (match-end 1))
-        (skip-chars-forward "[:space:]")
-        (setq offset (current-column)))
-       (t
-        (setq offset cypher-indent-offset))))
-    (when offset
-      (let ((diff (- (current-column) (current-indentation))))
-        (setq offset (max 0 offset))
-        (indent-line-to offset)
-        (if (> diff 0) (forward-char diff))))))
-
-(defun cypher-block-context (&optional pos)
-  "Count opened opened block at point."
-  (interactive)
-  (unless pos (setq pos (point)))
-  (save-excursion
-    (goto-char pos)
-    (let ((continue t)
-          (match "")
-          (case-found nil)
-          (case-count 0)
-          (queues (make-hash-table :test 'equal))
-          (opened-blocks 0)
-          (col-num 0)
-          (regexp "[\]\[}{)(]")
-          (num-opened 0)
-          close-char n queue arg-inline arg-inline-checked char lines)
-
-      (while (and continue (re-search-backward regexp nil t))
-        (setq match (match-string-no-properties 0)
-              char (char-after))
-
-        (cond
-
-         ((member char '(?\{ ?\( ?\[))
-          (cond
-           ((eq char ?\() (setq close-char ?\)))
-           ((eq char ?\{) (setq close-char ?\}))
-           ((eq char ?\[) (setq close-char ?\])))
-
-          (setq queue (gethash char queues nil))
-          (setq queue (push (cons (point) (cypher-line-number)) queue))
-          (puthash char queue queues)
-          ;;(message "%c queue=%S" char queue)
-
-          (setq queue (gethash close-char queues nil))
-          (setq n (length queue))
-          (cond
-           ((> n 0)
-            (setq queue (cdr queue))
-            (puthash close-char queue queues)
-            ;;(message "%c queue=%S" close-char queue)
-            (setq queue (gethash char queues nil))
-            (setq queue (cdr queue))
-            (puthash char queue queues)
-            ;;(message "%c queue=%S" char queue)
-            )
-           ((= n 0)
-            (setq num-opened (1+ num-opened))
-            ;;(message "num-opened=%S %S" num-opened (point))
-            )
-           )
-
-          (when (and (= num-opened 1) (null arg-inline-checked))
-            (setq arg-inline-checked t)
-            ;;              (when (not (member (char-after (1+ (point))) '(?\n ?\r ?\{)))
-            (when (not (looking-at-p ".[ ]*$"))
-              (setq arg-inline t
-                    continue nil
-                    col-num (1+ (current-column))))
-            ;;              (message "pt=%S" (point))
-            )
-
-          );case
-
-         ((member char '(?\} ?\) ?\]))
-          (setq queue (gethash char queues nil))
-          (setq queue (push (point) queue))
-          (puthash char queue queues)
-          ;;            (message "%c queue=%S" char queue)
-          )
-
-         );cond
-
-        );while
-
-      (unless arg-inline
-        (maphash
-         (lambda (char queue)
-           (when (member char '(?\{ ?\( ?\[))
-             ;;(message "%c => %S" char queue)
-             (dolist (pair queue)
-               (setq n (cdr pair))
-               (unless (member n lines)
-                 (push n lines))
-               )
-             );when
-           )
-         queues)
-        (setq opened-blocks (length lines))
-        (when (and case-found (> case-count 0))
-          (goto-char pos)
-          (back-to-indentation)
-          (when (not (looking-at-p "}"))
-            (setq opened-blocks (1+ opened-blocks))
-            )
-          )
-        );unless
-
-      ;;      (message "opened-blocks(%S) col-num(%S) arg-inline(%S)" opened-blocks col-num arg-inline)
-
-      (let ((ctx (list :block-level opened-blocks
-                       :arg-inline arg-inline
-                       :column col-num)))
-
-        (message "ctx=%S" ctx)
-
-        ctx))))
-
-(defun cypher-line-number (&optional pos)
-  "Return line number at point."
-  (unless pos (setq pos (point)))
-  (let (ret)
-    (setq ret (+ (count-lines 1 pos)
-                 (if (= (cypher-column-at-pos pos) 0) 1 0)))
-    ret))
-
-(defun cypher-column-at-pos (&optional pos)
-  "Column at point"
-  (unless pos (setq pos (point)))
-  (save-excursion
-    (goto-char pos)
-    (current-column)))
 
 (defgroup cypher-shell nil
   "Inferior mode for interactive cypher shell."
