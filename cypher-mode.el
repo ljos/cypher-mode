@@ -114,8 +114,8 @@
 (defun cypher-indent-line ()
   "Indent current line as a cypher query."
   (interactive)
-  (let (indent-column
-        (keywords (concat "\\b" (regexp-opt cypher-keywords) "\\b")))
+  (let ((keywords (concat "\\b" (regexp-opt cypher-keywords) "\\b"))
+        indent-column)
     (save-mark-and-excursion
       (beginning-of-line)
       (skip-syntax-forward "-" (line-end-position))
@@ -129,15 +129,16 @@
     (save-mark-and-excursion
       (back-to-indentation)
       (save-mark-and-excursion
-        (if (looking-at ")\\|}\\|\\]")
-            (setq indent-column
-                  (progn
-                    (backward-up-list)
-                    (current-column)))
-          (up-list -1)
-          (cond ((looking-at-p "({\\|\\[")
-                 (setq indent-column
-                       (+ 1 cypher-indent-offset (current-column)))))))
+        (ignore-errors
+          (if (looking-at ")\\|}\\|\\]")
+              (setq indent-column
+                    (progn
+                      (backward-up-list)
+                      (current-column)))
+            (up-list -1)
+            (cond ((looking-at-p "({\\|\\[")
+                   (setq indent-column
+                         (+ 1 cypher-indent-offset (current-column))))))))
       (end-of-line)
       (delete-horizontal-space)
       (indent-line-to (or indent-column 0))))
