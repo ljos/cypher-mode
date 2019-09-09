@@ -214,7 +214,7 @@
   "Set the user to a new value."
   (interactive
    (list (read-string "Username: ")))
-  (setq cypher-shell-user password))
+  (setq cypher-shell-user user))
 
 (defun cypher-shell--get-user ()
   (or cypher-shell-user
